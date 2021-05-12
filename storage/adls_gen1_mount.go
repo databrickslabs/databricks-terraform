@@ -29,7 +29,7 @@ func (m AzureADLSGen1Mount) Config() map[string]string {
 		m.PrefixType + ".oauth2.access.token.provider.type": "ClientCredential",
 
 		m.PrefixType + ".oauth2.client.id":   m.ClientID,
-		m.PrefixType + ".oauth2.credential":  fmt.Sprintf("{secrets/%s/%s}", m.SecretScope, m.SecretKey),
+		m.PrefixType + ".oauth2.credential":  fmt.Sprintf("{{secrets/%s/%s}}", m.SecretScope, m.SecretKey),
 		m.PrefixType + ".oauth2.refresh.url": fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/token", m.TenantID),
 	}
 }

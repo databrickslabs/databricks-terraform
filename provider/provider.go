@@ -74,6 +74,7 @@ func DatabricksProvider() *schema.Provider {
 			"databricks_azure_adls_gen2_mount": storage.ResourceAzureAdlsGen2Mount(),
 			"databricks_azure_blob_mount":      storage.ResourceAzureBlobMount(),
 			"databricks_dbfs_file":             storage.ResourceDBFSFile(),
+			"databricks_mount":                 storage.ResourceDatabricksMount(),
 
 			"databricks_sql_dashboard":     sqlanalytics.ResourceDashboard(),
 			"databricks_sql_endpoint":      sqlanalytics.ResourceSQLEndpoint(),
