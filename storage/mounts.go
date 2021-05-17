@@ -68,8 +68,10 @@ func (mp MountPoint) Mount(mo Mount) (source string, err error) {
 	if err != nil {
 		return
 	}
-	b := regexp.MustCompile(`"\{\{secrets/([^/]+)/([^\}]+)\}\}"`)
-	extraConfigs = b.ReplaceAll(extraConfigs, []byte(`dbutils.secrets.get("$1", "$2")`))
+	secretsRe := regexp.MustCompile(`"\{\{secrets/([^/]+)/([^\}]+)\}\}"`)
+	extraConfigs = secretsRe.ReplaceAll(extraConfigs, []byte(`dbutils.secrets.get("$1", "$2")`))
+	sparkConfRe := regexp.MustCompile(`"\{\{sparkconf/([^\}]+)\}\}"`)
+	extraConfigs = sparkConfRe.ReplaceAll(extraConfigs, []byte(`spark.conf.get("$1")`))
 	command := fmt.Sprintf(`
 		def safe_mount(mount_point, mount_source, configs):
 			for mount in dbutils.fs.mounts():
