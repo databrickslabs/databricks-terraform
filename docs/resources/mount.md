@@ -75,7 +75,7 @@ resource "databricks_mount" "passthrough" {
   mount_name = "passthrough-test"
   cluster_id = databricks_cluster.shared_passthrough.id
   
-  source = "abfss://${var.container}@${var.storage_acc}.dfs.core.windows.net"
+  uri = "abfss://${var.container}@${var.storage_acc}.dfs.core.windows.net"
   extra_configs = {
     "fs.azure.account.auth.type": "CustomAccessToken",
     "fs.azure.account.custom.token.provider.class": "{{sparkconf/spark.databricks.passthrough.adls.gen2.tokenProviderClassName}}",
