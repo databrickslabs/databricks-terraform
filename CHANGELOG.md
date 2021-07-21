@@ -1,5 +1,9 @@
 # Version changelog
 
+## 0.3.7
+
+* Fixed incorrect workspace update bug and added more validation error messaging ([#649](https://github.com/databrickslabs/terraform-provider-databricks/pull/649))
+
 ## 0.3.6
 
 * Added support for hybrid pools ([#689](https://github.com/databrickslabs/terraform-provider-databricks/pull/689))
