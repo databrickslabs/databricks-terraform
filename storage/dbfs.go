@@ -15,9 +15,10 @@ type FileList struct {
 
 // FileInfo contains information when listing files or fetching files from DBFS api
 type FileInfo struct {
-	Path     string `json:"path,omitempty"`
-	IsDir    bool   `json:"is_dir,omitempty"`
-	FileSize int64  `json:"file_size,omitempty"`
+	Path             string `json:"path,omitempty"`
+	IsDir            bool   `json:"is_dir,omitempty"`
+	FileSize         int64  `json:"file_size,omitempty"`
+	ModificationTime int64  `json:"modification_time,omitempty"`
 }
 
 // CreateHandle contains the payload to create a handle which is a connection for uploading blocks of file data

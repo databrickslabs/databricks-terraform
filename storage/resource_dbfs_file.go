@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/databrickslabs/terraform-provider-databricks/common"
 
@@ -14,9 +15,23 @@ import (
 func ResourceDBFSFile() *schema.Resource {
 	return common.Resource{
 		SchemaVersion: 1,
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, c interface{}) error {
+			a, b := d.GetChange("modification_time")
+			log.Printf("[DEBUG] ---------> modification time diff %v vs %v", a, b)
+			if d.HasChange("modification_time") {
+				log.Printf("[DEBUG] ---------> detected change in modification_time")
+				return d.SetNewComputed("modification_time")
+			}
+			return nil
+		},
 		Schema: workspace.FileContentSchema(map[string]*schema.Schema{
 			"file_size": {
 				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"modification_time": {
+				Type:     schema.TypeInt,
+				Optional: true,
 				Computed: true,
 			},
 			"dbfs_path": {
@@ -45,6 +60,7 @@ func ResourceDBFSFile() *schema.Resource {
 			d.Set("path", fileInfo.Path)
 			d.Set("dbfs_path", fmt.Sprint("dbfs:", fileInfo.Path))
 			d.Set("file_size", fileInfo.FileSize)
+			d.Set("modification_time", fileInfo.ModificationTime)
 			return nil
 		},
 		Delete: func(ctx context.Context, d *schema.ResourceData, c *common.DatabricksClient) error {
