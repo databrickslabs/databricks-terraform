@@ -83,7 +83,7 @@ type Workspace struct {
 	CustomerManagedKeyID                string `json:"customer_managed_key_id,omitempty"` // just for compatibility, will be removed
 	StorageConfigurationID              string `json:"storage_configuration_id"`
 	ManagedServicesCustomerManagedKeyID string `json:"managed_services_customer_managed_key_id,omitempty"`
-	StoragexCustomerManagedKeyID        string `json:"storage_customer_managed_key_id,omitempty"`
+	StorageCustomerManagedKeyID         string `json:"storage_customer_managed_key_id,omitempty"`
 	PricingTier                         string `json:"pricing_tier,omitempty" tf:"computed"`
 	PrivateAccessSettingsID             string `json:"private_access_settings_id,omitempty"`
 	NetworkID                           string `json:"network_id,omitempty"`

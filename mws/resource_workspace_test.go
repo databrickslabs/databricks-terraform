@@ -42,7 +42,7 @@ func TestResourceWorkspaceCreate(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 				},
 				Response: Workspace{
 					WorkspaceID:    1234,
@@ -64,7 +64,7 @@ func TestResourceWorkspaceCreate(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 					AccountID:                           "abc",
 				},
 			},
@@ -103,7 +103,7 @@ func TestResourceWorkspaceCreateWithIsNoPublicIPEnabledFalse(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 				},
 				Response: Workspace{
 					WorkspaceID:    1234,
@@ -125,7 +125,7 @@ func TestResourceWorkspaceCreateWithIsNoPublicIPEnabledFalse(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 					AccountID:                           "abc",
 				},
 			},
@@ -266,7 +266,7 @@ func TestResourceWorkspaceRead(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 					WorkspaceID:                         1234,
 				},
 			},
@@ -309,7 +309,7 @@ func TestResourceWorkspaceRead_Issue382(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 					WorkspaceID:                         1234,
 				},
 			},
@@ -394,14 +394,10 @@ func TestResourceWorkspaceUpdate(t *testing.T) {
 			{
 				Method:   "PATCH",
 				Resource: "/api/2.0/accounts/abc/workspaces/1234",
-				ExpectedRequest: Workspace{
-					StorageConfigurationID:              "ghi",
-					NetworkID:                           "fgh",
-					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
-					IsNoPublicIPEnabled:                 true,
-					AwsRegion:                           "us-east-1",
-					CredentialsID:                       "bcd",
+				ExpectedRequest: map[string]interface{}{
+					"credentials_id":                  "bcd",
+					"network_id":                      "fgh",
+					"storage_customer_managed_key_id": "def",
 				},
 			},
 			{
@@ -417,7 +413,7 @@ func TestResourceWorkspaceUpdate(t *testing.T) {
 					StorageConfigurationID:              "ghi",
 					NetworkID:                           "fgh",
 					ManagedServicesCustomerManagedKeyID: "def",
-					StoragexCustomerManagedKeyID:        "def",
+					StorageCustomerManagedKeyID:         "def",
 					AccountID:                           "abc",
 					WorkspaceID:                         1234,
 				},
@@ -444,19 +440,50 @@ func TestResourceWorkspaceUpdate(t *testing.T) {
 	assert.Equal(t, "abc/1234", d.Id(), "Id should be the same as in reading")
 }
 
+func TestResourceWorkspaceUpdate_NotAllowed(t *testing.T) {
+	qa.ResourceFixture{
+		Resource: ResourceWorkspace(),
+		InstanceState: map[string]string{
+			"account_id":     "abc",
+			"aws_region":     "us-east-1",
+			"credentials_id": "bcd",
+			"managed_services_customer_managed_key_id": "def",
+			"storage_customer_managed_key_id":          "def",
+			"deployment_name":                          "900150983cd24fb0",
+			"workspace_name":                           "labdata",
+			"is_no_public_ip_enabled":                  "true",
+			"network_id":                               "fgh",
+			"storage_configuration_id":                 "ghi",
+			"workspace_id":                             "1234",
+		},
+		State: map[string]interface{}{
+			"account_id": "THIS_IS_CHANGING",
+
+			"aws_region":     "us-east-1",
+			"credentials_id": "bcd",
+			"managed_services_customer_managed_key_id": "def",
+			"storage_customer_managed_key_id":          "def",
+			"deployment_name":                          "900150983cd24fb0",
+			"workspace_name":                           "labdata",
+			"is_no_public_ip_enabled":                  true,
+			"network_id":                               "fgh",
+			"storage_configuration_id":                 "ghi",
+			"workspace_id":                             1234,
+		},
+		Update: true,
+		ID:     "abc/1234",
+	}.ExpectError(t, "it is not allowed to change account_id on a running workspace")
+}
+
 func TestResourceWorkspaceUpdateLegacyConfig(t *testing.T) {
 	d, err := qa.ResourceFixture{
 		Fixtures: []qa.HTTPFixture{
 			{
 				Method:   "PATCH",
 				Resource: "/api/2.0/accounts/abc/workspaces/1234",
-				ExpectedRequest: Workspace{
-					StorageConfigurationID:              "ghi",
-					NetworkID:                           "fgh",
-					ManagedServicesCustomerManagedKeyID: "def",
-					IsNoPublicIPEnabled:                 true,
-					AwsRegion:                           "us-east-1",
-					CredentialsID:                       "bcd",
+				ExpectedRequest: map[string]interface{}{
+					"credentials_id": "bcd",
+					"network_id":     "fgh",
 				},
 			},
 			{
@@ -600,7 +627,7 @@ func TestWaitForRunning(t *testing.T) {
 				StorageConfigurationID:              "ghi",
 				NetworkID:                           "fgh",
 				ManagedServicesCustomerManagedKeyID: "def",
-				StoragexCustomerManagedKeyID:        "def",
+				StorageCustomerManagedKeyID:         "def",
 			},
 			Response: Workspace{
 				WorkspaceID:    1234,
@@ -621,7 +648,7 @@ func TestWaitForRunning(t *testing.T) {
 				StorageConfigurationID:              "ghi",
 				NetworkID:                           "fgh",
 				ManagedServicesCustomerManagedKeyID: "def",
-				StoragexCustomerManagedKeyID:        "def",
+				StorageCustomerManagedKeyID:         "def",
 				AccountID:                           "abc",
 			},
 		},
@@ -638,7 +665,7 @@ func TestWaitForRunning(t *testing.T) {
 				StorageConfigurationID:              "ghi",
 				NetworkID:                           "fgh",
 				ManagedServicesCustomerManagedKeyID: "def",
-				StoragexCustomerManagedKeyID:        "def",
+				StorageCustomerManagedKeyID:         "def",
 				AccountID:                           "abc",
 			},
 		},
@@ -656,7 +683,7 @@ func TestWaitForRunning(t *testing.T) {
 		StorageConfigurationID:              "ghi",
 		NetworkID:                           "fgh",
 		ManagedServicesCustomerManagedKeyID: "def",
-		StoragexCustomerManagedKeyID:        "def",
+		StorageCustomerManagedKeyID:         "def",
 	}, DefaultProvisionTimeout)
 	require.NoError(t, err)
 }
@@ -676,7 +703,7 @@ func TestCreateFailsAndCleansUp(t *testing.T) {
 				StorageConfigurationID:              "ghi",
 				NetworkID:                           "fgh",
 				ManagedServicesCustomerManagedKeyID: "def",
-				StoragexCustomerManagedKeyID:        "def",
+				StorageCustomerManagedKeyID:         "def",
 			},
 			Response: Workspace{
 				WorkspaceID:    1234,
@@ -730,7 +757,7 @@ func TestCreateFailsAndCleansUp(t *testing.T) {
 		StorageConfigurationID:              "ghi",
 		NetworkID:                           "fgh",
 		ManagedServicesCustomerManagedKeyID: "def",
-		StoragexCustomerManagedKeyID:        "def",
+		StorageCustomerManagedKeyID:         "def",
 	}, DefaultProvisionTimeout)
 	require.EqualError(t, err, "Workspace failed to create: Always fails, network error message: error: FAIL;error_msg: Message;")
 }

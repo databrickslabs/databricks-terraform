@@ -129,18 +129,23 @@ func (a WorkspacesAPI) WaitForRunning(ws Workspace, timeout time.Duration) error
 	})
 }
 
-// Patch will relaunch the workspace deployment
-func (a WorkspacesAPI) Patch(ws Workspace, timeout time.Duration) error {
+// UpdateRunning will update running workspace with couple of possible fields
+func (a WorkspacesAPI) UpdateRunning(ws Workspace, timeout time.Duration) error {
 	workspacesAPIPath := fmt.Sprintf("/accounts/%s/workspaces/%d", ws.AccountID, ws.WorkspaceID)
-	err := a.client.Patch(a.context, workspacesAPIPath, Workspace{
-		AwsRegion:                           ws.AwsRegion,
-		CredentialsID:                       ws.CredentialsID,
-		StorageConfigurationID:              ws.StorageConfigurationID,
-		IsNoPublicIPEnabled:                 ws.IsNoPublicIPEnabled,
-		NetworkID:                           ws.NetworkID,
-		ManagedServicesCustomerManagedKeyID: ws.ManagedServicesCustomerManagedKeyID,
-		StoragexCustomerManagedKeyID:        ws.StoragexCustomerManagedKeyID,
-	})
+	request := map[string]string{
+		"credentials_id": ws.CredentialsID,
+		// The ID of the workspace's network configuration object. Used only if you already use a customer-managed VPC.
+		// This change is supported only if you specified a network configuration ID when the workspace was created.
+		// In other words, you cannot switch from a Databricks-managed VPC to a customer-managed VPC. This parameter
+		// is available for updating both failed and running workspaces. Note: You cannot use a network configuration
+		// update in this API to add support for PrivateLink (in Public Preview). To add PrivateLink to an existing
+		// workspace, contact your Databricks representative.
+		"network_id": ws.NetworkID,
+	}
+	if ws.StorageCustomerManagedKeyID != "" {
+		request["storage_customer_managed_key_id"] = ws.StorageCustomerManagedKeyID
+	}
+	err := a.client.Patch(a.context, workspacesAPIPath, request)
 	if err != nil {
 		return err
 	}
@@ -189,7 +194,7 @@ func (a WorkspacesAPI) List(mwsAcctID string) ([]Workspace, error) {
 
 // ResourceWorkspace manages E2 workspaces
 func ResourceWorkspace() *schema.Resource {
-	s := common.StructToSchema(Workspace{}, func(s map[string]*schema.Schema) map[string]*schema.Schema {
+	workspaceSchema := common.StructToSchema(Workspace{}, func(s map[string]*schema.Schema) map[string]*schema.Schema {
 		s["account_id"].Sensitive = true
 		s["account_id"].ForceNew = true
 		s["workspace_name"].ForceNew = true
@@ -222,15 +227,41 @@ func ResourceWorkspace() *schema.Resource {
 	})
 	p := common.NewPairSeparatedID("account_id", "workspace_id", "/").Schema(
 		func(_ map[string]*schema.Schema) map[string]*schema.Schema {
-			return s
+			return workspaceSchema
 		})
 	return common.Resource{
-		Schema:        s,
+		Schema:        workspaceSchema,
 		SchemaVersion: 2,
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, c interface{}) error {
+			runningUpdatesAllowed := []string{"credentials_id", "network_id", "storage_customer_managed_key_id"}
+			for name, fieldSchema := range workspaceSchema {
+				if fieldSchema.Computed {
+					// skip checking all changes from remote state
+					continue
+				}
+				old, _ := d.GetChange(name)
+				if old == fieldSchema.ZeroValue() {
+					// skip checking on Create stage
+					continue
+				}
+				if !d.HasChange(name) {
+					// skip checking fields that are not changed
+					continue
+				}
+				for _, allowed := range runningUpdatesAllowed {
+					if allowed == name {
+						// allow updates for specific list of fields
+						continue
+					}
+				}
+				return fmt.Errorf("it is not allowed to change %s on a running workspace", name)
+			}
+			return nil
+		},
 		Create: func(ctx context.Context, d *schema.ResourceData, c *common.DatabricksClient) error {
 			var workspace Workspace
 			workspacesAPI := NewWorkspacesAPI(ctx, c)
-			if err := common.DataToStructPointer(d, s, &workspace); err != nil {
+			if err := common.DataToStructPointer(d, workspaceSchema, &workspace); err != nil {
 				return err
 			}
 			if len(workspace.CustomerManagedKeyID) > 0 && len(workspace.ManagedServicesCustomerManagedKeyID) == 0 {
@@ -259,7 +290,7 @@ func ResourceWorkspace() *schema.Resource {
 			// The field is only used on creation and we therefore suppress all diffs.
 			workspace.IsNoPublicIPEnabled = true
 			workspace.WorkspaceURL = fmt.Sprintf("https://%s", generateWorkspaceHostname(c, workspace))
-			if err = common.StructToData(workspace, s, d); err != nil {
+			if err = common.StructToData(workspace, workspaceSchema, d); err != nil {
 				return err
 			}
 			return workspacesAPI.WaitForRunning(workspace, d.Timeout(schema.TimeoutRead))
@@ -267,7 +298,7 @@ func ResourceWorkspace() *schema.Resource {
 		Update: func(ctx context.Context, d *schema.ResourceData, c *common.DatabricksClient) error {
 			var workspace Workspace
 			workspacesAPI := NewWorkspacesAPI(ctx, c)
-			if err := common.DataToStructPointer(d, s, &workspace); err != nil {
+			if err := common.DataToStructPointer(d, workspaceSchema, &workspace); err != nil {
 				return err
 			}
 			if len(workspace.CustomerManagedKeyID) > 0 && len(workspace.ManagedServicesCustomerManagedKeyID) == 0 {
@@ -275,7 +306,7 @@ func ResourceWorkspace() *schema.Resource {
 				workspace.ManagedServicesCustomerManagedKeyID = workspace.CustomerManagedKeyID
 				workspace.CustomerManagedKeyID = ""
 			}
-			return workspacesAPI.Patch(workspace, d.Timeout(schema.TimeoutUpdate))
+			return workspacesAPI.UpdateRunning(workspace, d.Timeout(schema.TimeoutUpdate))
 		},
 		Delete: func(ctx context.Context, d *schema.ResourceData, c *common.DatabricksClient) error {
 			accountID, workspaceID, err := p.Unpack(d)
