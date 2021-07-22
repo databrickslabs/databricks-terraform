@@ -13,7 +13,8 @@ import (
 
 // AWSIamMount describes the object for a aws mount using iam role
 type AWSIamMount struct {
-	S3BucketName string `json:"s3_bucket_name"`
+	S3BucketName    string `json:"s3_bucket_name"`
+	InstanceProfile string `json:"instance_profile,omitempty"`
 }
 
 // Source ...
@@ -122,6 +123,7 @@ func GetOrCreateMountingClusterWithInstanceProfile(
 	}
 	instanceProfileParts := strings.Split(ia.Resource, "/")
 	clusterName := fmt.Sprintf("terraform-mount-%s", strings.Join(instanceProfileParts[1:], "-"))
+	// TODO: use SingleNode cluster?
 	return clustersAPI.GetOrCreateRunningCluster(clusterName, compute.Cluster{
 		NumWorkers:  1,
 		ClusterName: clusterName,
